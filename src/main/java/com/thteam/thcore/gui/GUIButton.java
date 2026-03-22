@@ -1,70 +1,190 @@
 package com.thteam.thcore.gui;
 
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Represents a clickable button in a GUI: a slot + an ItemStack + an optional click handler.
+ * Represents a clickable (or decorative) button in a GUI.
  *
- * Use with BaseGUI.addButton() or FullGUI.addButton() to avoid boilerplate click dispatch.
+ * Supports a fluent builder API:
  *
- * Examples:
+ *   new GUIButton(13, diamondItem)
+ *       .priority(10)
+ *       .require(GUIRequirement.permission("vip"))         // only shown to VIPs
+ *       .requireClick(GUIRequirement.money(100))           // click only if has $100
+ *       .onDeny(GUIAction.message("<red>Need $100!"))      // runs if click req fails
+ *       .onClick(GUIAction.takeMoney(100),
+ *                GUIAction.console("give %player% diamond 1"))
  *
- *   // Button with click action
- *   addButton(new GUIButton(13, diamondItem, event -> player.sendMessage("Clicked!")));
- *
- *   // Decorative item (no action)
- *   addButton(new GUIButton(0, glassPane));
- *
- *   // Close button (FullGUI slot 81 = first hotbar slot)
- *   addButton(new GUIButton(81, barrierItem, event -> close()));
+ * Priority: when multiple buttons share the same slot, the one with the highest
+ * priority whose viewRequirement passes is displayed. Lower priorities act as fallbacks.
  */
 public class GUIButton {
 
     private final int slot;
     private final ItemStack item;
-    private final Consumer<InventoryClickEvent> onClick;
+
+    // Priority: higher = evaluated first when multiple buttons share a slot
+    private int priority = 0;
+
+    // View requirement: if set, this button is only shown when it passes
+    private GUIRequirement viewRequirement = null;
+
+    // Click requirement: if set, click actions only run when it passes
+    private GUIRequirement clickRequirement = null;
+
+    // Actions run when click requirement FAILS
+    private final List<GUIAction> denyActions = new ArrayList<>();
+
+    // Actions run when the button is clicked (and click requirement passes)
+    private final List<GUIAction> clickActions = new ArrayList<>();
+
+    // Legacy Consumer support (kept for backwards compatibility)
+    private Consumer<InventoryClickEvent> legacyOnClick = null;
+
+    // ================================================================
+    // Constructors (backwards-compatible)
+    // ================================================================
 
     /**
-     * Creates a button with a click handler.
-     *
-     * @param slot    Inventory slot (0-based). For FullGUI use unified slots (0-89).
-     * @param item    The item to display in the slot.
-     * @param onClick Called when the player clicks this slot. May be null.
+     * Decorative button — no click action.
+     */
+    public GUIButton(int slot, ItemStack item) {
+        this.slot = slot;
+        this.item = item;
+    }
+
+    /**
+     * Button with a legacy Consumer<InventoryClickEvent> handler.
+     * Kept for backwards compatibility with existing code.
      */
     public GUIButton(int slot, ItemStack item, Consumer<InventoryClickEvent> onClick) {
         this.slot = slot;
         this.item = item;
-        this.onClick = onClick;
+        this.legacyOnClick = onClick;
+    }
+
+    // ================================================================
+    // Builder methods (fluent API, return this)
+    // ================================================================
+
+    /**
+     * Sets the priority of this button.
+     * When multiple buttons target the same slot, the highest-priority visible one wins.
+     * Default is 0.
+     */
+    public GUIButton priority(int p) {
+        this.priority = p;
+        return this;
     }
 
     /**
-     * Creates a decorative button with no click action.
+     * Sets a view requirement. The button is only shown if this passes for the viewer.
      */
-    public GUIButton(int slot, ItemStack item) {
-        this(slot, item, null);
-    }
-
-    public int getSlot() {
-        return slot;
-    }
-
-    public ItemStack getItem() {
-        return item;
+    public GUIButton require(GUIRequirement req) {
+        this.viewRequirement = req;
+        return this;
     }
 
     /**
-     * Executes the click handler if one was provided.
+     * Sets a click requirement. Click actions only run if this passes.
+     * If it fails, denyActions run instead.
      */
-    public void click(InventoryClickEvent event) {
-        if (onClick != null) {
-            onClick.accept(event);
+    public GUIButton requireClick(GUIRequirement req) {
+        this.clickRequirement = req;
+        return this;
+    }
+
+    /**
+     * Adds actions to run when the click requirement FAILS.
+     */
+    public GUIButton onDeny(GUIAction... actions) {
+        denyActions.addAll(Arrays.asList(actions));
+        return this;
+    }
+
+    /**
+     * Adds GUIAction-based click handlers.
+     * These replace/supplement the legacy Consumer if both are set.
+     */
+    public GUIButton onClick(GUIAction... actions) {
+        clickActions.addAll(Arrays.asList(actions));
+        return this;
+    }
+
+    // ================================================================
+    // Evaluation methods
+    // ================================================================
+
+    /**
+     * Returns true if this button should be visible to the given player.
+     * A button with no view requirement is always visible.
+     */
+    public boolean isVisible(Player player) {
+        return viewRequirement == null || viewRequirement.test(player);
+    }
+
+    /**
+     * Returns true if the player is allowed to trigger click actions.
+     * A button with no click requirement always allows clicks.
+     */
+    public boolean canClick(Player player) {
+        return clickRequirement == null || clickRequirement.test(player);
+    }
+
+    /**
+     * Executes all deny actions (called when clickRequirement fails).
+     */
+    public void executeDenyActions(Player player) {
+        for (GUIAction action : denyActions) {
+            action.execute(player);
         }
     }
 
-    public boolean hasAction() {
-        return onClick != null;
+    /**
+     * Executes all click actions (called when click is allowed).
+     * Also fires the legacy Consumer<InventoryClickEvent> if set.
+     */
+    public void executeClickActions(Player player, InventoryClickEvent event) {
+        for (GUIAction action : clickActions) {
+            action.execute(player);
+        }
+        if (legacyOnClick != null) {
+            legacyOnClick.accept(event);
+        }
     }
+
+    /**
+     * Full click dispatch: checks requirement → runs deny or click actions.
+     */
+    public void click(Player player, InventoryClickEvent event) {
+        if (canClick(player)) {
+            executeClickActions(player, event);
+        } else {
+            executeDenyActions(player);
+        }
+    }
+
+    /**
+     * Legacy click dispatch (no Player reference).
+     * Kept for backwards compatibility — prefer click(Player, InventoryClickEvent).
+     */
+    public void click(InventoryClickEvent event) {
+        click((Player) event.getWhoClicked(), event);
+    }
+
+    // ================================================================
+    // Getters
+    // ================================================================
+
+    public int getSlot() { return slot; }
+    public ItemStack getItem() { return item; }
+    public int getPriority() { return priority; }
+    public boolean hasAction() { return !clickActions.isEmpty() || legacyOnClick != null; }
 }
