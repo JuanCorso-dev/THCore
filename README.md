@@ -6,7 +6,7 @@
 
 - **Database System** — MySQL and SQLite support via HikariCP connection pooling, auto-selected from config
 - **Command Framework** — `BaseCommand` + `SubCommand` pattern with automatic tab-completion and permission checks
-- **GUI System** — `BaseGUI` abstract class with per-instance listeners, auto click-cancel, and close handling
+- **GUI System** — `BaseGUI` (chest) and `FullGUI` (chest + player inventory) with priority slot resolution, `GUIAction`, `GUIRequirement`, dynamic PAPI titles, open/close hooks, and auto-refresh
 - **Cooldown Manager** — Per-player, per-key cooldowns stored in memory with auto-cleanup
 - **Message System** — Full MiniMessage support (`<red>`, `<gradient:...>`), legacy `&c` codes, and hex `&#RRGGBB`
 - **Hook System** — Soft-depend integrations that activate only if the target plugin is installed
@@ -149,30 +149,150 @@ public class MyCommand extends BaseCommand {
 new MyCommand(plugin).register(this, "mycommand");
 ```
 
-### 4. Create a GUI
+### 4. Create a GUI (BaseGUI — chest only)
+
+`BaseGUI` is the foundation for chest-based menus. It supports `GUIButton` with priority-based slot resolution, `GUIRequirement` conditions, `GUIAction` handlers, dynamic PlaceholderAPI titles, and auto-refresh.
 
 ```java
 public class MyShopGUI extends BaseGUI {
 
     public MyShopGUI(THCore plugin) {
-        super(plugin, "<gold><bold>My Shop</bold></gold>", 3); // 3 rows
+        super(plugin, "<gold>Shop — Balance: %vault_eco_balance_fixed%$</gold>", 3);
+
+        // Refresh title + items every second
+        setUpdateInterval(20);
+
+        // Actions on open / close
+        addOpenAction(
+            GUIAction.sound(Sound.BLOCK_CHEST_OPEN, 1f, 1f),
+            GUIAction.message("<gray>Welcome to the shop!")
+        );
+        addCloseAction(
+            GUIAction.sound(Sound.BLOCK_CHEST_CLOSE, 1f, 1f)
+        );
+
+        // VIP button — shown only to players with "shop.vip" (priority 10)
+        addButton(new GUIButton(13, vipDiamondItem)
+            .priority(10)
+            .require(GUIRequirement.permission("shop.vip"))
+            .onClick(
+                GUIAction.takeMoney(500),
+                GUIAction.console("give %player% diamond 5"),
+                GUIAction.message("<green>You bought 5 diamonds!")
+            )
+        );
+
+        // Normal button — fallback for non-VIPs (priority 1)
+        // Only executes if the player has $100; otherwise runs deny action
+        addButton(new GUIButton(13, normalItem)
+            .priority(1)
+            .requireClick(GUIRequirement.money(100))
+            .onDeny(GUIAction.message("<red>You need $100!"))
+            .onClick(
+                GUIAction.takeMoney(100),
+                GUIAction.console("give %player% gold_ingot 1")
+            )
+        );
+
+        // Close button
+        addButton(new GUIButton(26, barrierItem)
+            .onClick(GUIAction.close())
+        );
     }
 
     @Override
     protected void fillItems() {
-        setItem(13, new ItemStack(Material.DIAMOND));
-    }
-
-    @Override
-    protected void handleClick(InventoryClickEvent event) {
-        if (event.getSlot() == 13) {
-            event.getWhoClicked().sendMessage("Clicked!");
-        }
+        fillEmpty(grayGlassPane); // fill empty slots with decoration
     }
 }
 
 // Open it:
 new MyShopGUI(plugin).open(player);
+```
+
+#### GUIRequirement — conditions
+
+```java
+GUIRequirement.permission("shop.vip")          // player has permission
+GUIRequirement.noPermission("shop.banned")     // player lacks permission
+GUIRequirement.money(500)                      // player has ≥ $500 (Vault)
+GUIRequirement.playerPoints(100)               // player has ≥ 100 points (PlayerPoints)
+GUIRequirement.placeholder("%player_level%", ">=", "10") // PAPI comparison
+
+// Combine with logical operators
+GUIRequirement.permission("vip").or(GUIRequirement.money(1000))
+GUIRequirement.permission("banned").negate()
+GUIRequirement.money(100).and(GUIRequirement.permission("shop.access"))
+
+// Custom lambda
+GUIRequirement custom = player -> player.getLevel() >= 10;
+```
+
+#### GUIAction — actions
+
+```java
+GUIAction.message("<red>Text")                          // send message to player
+GUIAction.broadcast("<gold>Announcement")               // broadcast to all
+GUIAction.console("give %player% diamond 1")            // run as console (%player% = name)
+GUIAction.playerCommand("/warp spawn")                  // run as player
+GUIAction.close()                                       // close the GUI
+GUIAction.sound(Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f)   // play sound
+GUIAction.title("<gold>Title", "<gray>Subtitle", 10, 40, 10)
+GUIAction.giveMoney(500)                                // give money (Vault)
+GUIAction.takeMoney(100)                                // take money (Vault)
+GUIAction.openMenu(() -> new OtherMenu(plugin))         // open another BaseGUI
+GUIAction.openFullMenu(() -> new OtherFullMenu(plugin)) // open a FullGUI
+GUIAction.chain(action1, action2, action3)              // run multiple in order
+
+// Custom lambda
+GUIAction custom = player -> player.setFlying(true);
+```
+
+### 5. Create a FullGUI (chest + player inventory)
+
+`FullGUI` uses a **unified slot system (0–89)** that covers both the chest and the player's inventory. The player's inventory is automatically backed up on open and restored on close (including on disconnect and death).
+
+```
+Chest:       0 –  8  (row 0)    54 – 62  (player main row 1)
+             9 – 17  (row 1)    63 – 71  (player main row 2)
+            18 – 26  (row 2)    72 – 80  (player main row 3)
+            27 – 35  (row 3)    81 – 89  (hotbar)
+            36 – 44  (row 4)
+            45 – 53  (row 5)
+```
+
+```java
+public class MyFullMenu extends FullGUI {
+
+    public MyFullMenu(THCore plugin) {
+        super(plugin, "<gold>Full Menu — %vault_eco_balance_fixed%$</gold>", 6);
+
+        setUpdateInterval(20);
+
+        addOpenAction(GUIAction.sound(Sound.BLOCK_CHEST_OPEN, 1f, 1f));
+        addCloseAction(GUIAction.sound(Sound.BLOCK_CHEST_CLOSE, 1f, 1f));
+
+        // VIP button at chest slot 4
+        addButton(new GUIButton(4, vipItem)
+            .priority(10)
+            .require(GUIRequirement.permission("menu.vip"))
+            .onClick(GUIAction.message("<green>VIP action!"))
+        );
+
+        // Close button at hotbar slot 81
+        addButton(new GUIButton(81, barrierItem)
+            .onClick(GUIAction.close())
+        );
+    }
+
+    @Override
+    protected void fillItems() {
+        fillEmpty(grayGlassPane);
+    }
+}
+
+// Open it:
+new MyFullMenu(plugin).open(player);
 ```
 
 ## Building from Source
