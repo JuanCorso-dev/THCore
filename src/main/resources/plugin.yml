@@ -1,0 +1,29 @@
+name: THCore
+version: '${version}'
+main: com.thteam.thcore.THCore
+api-version: '1.21'
+description: Core library for TH Team plugins
+authors: [ THTeam ]
+website: ''
+
+softdepend:
+  - Vault
+  - PlaceholderAPI
+  - WorldGuard
+  - Nexo
+  - MythicMobs
+  - CoinsEngine
+  - PlayerPoints
+  - ItemsAdder
+  - Oraxen
+
+commands:
+  thcore:
+    description: THCore admin command
+    usage: /thcore <reload|info|hooks>
+    permission: thcore.admin
+
+permissions:
+  thcore.admin:
+    description: Access to THCore admin commands
+    default: op

@@ -1,0 +1,32 @@
+# =============================================
+#   THCore Configuration
+#   Plugin Core for TH Team plugins
+# =============================================
+
+database:
+  # Tipo de base de datos: mysql o sqlite
+  type: sqlite
+
+  sqlite:
+    # Nombre del archivo .db (relativo a la carpeta del plugin)
+    file: thcore.db
+
+  mysql:
+    host: localhost
+    port: 3306
+    database: thcore
+    username: root
+    password: ''
+    use-ssl: false
+    # Configuración del pool HikariCP
+    pool-size: 10
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+
+messages:
+  prefix: '<gray>[<aqua>THCore</aqua>]</gray> '
+  no-permission: '<red>No tienes permiso para hacer eso.</red>'
+  reload-success: '<green>Configuración recargada correctamente.</green>'
+  unknown-subcommand: '<red>Subcomando desconocido. Usa /<command> help</red>'
+  only-players: '<red>Este comando solo puede ser ejecutado por jugadores.</red>'
