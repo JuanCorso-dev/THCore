@@ -5,6 +5,8 @@ import com.thteam.thcore.command.THCoreCommand;
 import com.thteam.thcore.config.ConfigManager;
 import com.thteam.thcore.cooldown.CooldownManager;
 import com.thteam.thcore.database.DatabaseManager;
+import com.thteam.thcore.gui.InventoryBackupManager;
+import com.thteam.thcore.gui.PlayerInventoryListener;
 import com.thteam.thcore.hook.HookManager;
 import com.thteam.thcore.message.MessageManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -13,13 +15,14 @@ import org.bukkit.plugin.java.JavaPlugin;
  * THCore — Core library plugin for Paper 1.21.1
  *
  * Initialization order (MUST be respected):
- *   1. ConfigManager  — everything else reads from config
- *   2. MessageManager — used by all systems for output
- *   3. DatabaseManager — reads DB type from config
- *   4. CooldownManager — pure in-memory, no dependencies
- *   5. HookManager     — needs Bukkit's PluginManager (all plugins already loaded)
- *   6. THCoreAPI       — static facade, initialized last
- *   7. Commands        — registered after everything is wired
+ *   1. ConfigManager         — everything else reads from config
+ *   2. MessageManager        — used by all systems for output
+ *   3. DatabaseManager       — reads DB type from config
+ *   4. CooldownManager       — pure in-memory, no dependencies
+ *   5. InventoryBackupManager — needed by FullGUI and PlayerInventoryListener
+ *   6. HookManager           — needs Bukkit's PluginManager (all plugins already loaded)
+ *   7. THCoreAPI             — static facade, initialized last
+ *   8. Commands + Listeners  — registered after everything is wired
  */
 public final class THCore extends JavaPlugin {
 
@@ -29,6 +32,7 @@ public final class THCore extends JavaPlugin {
     private MessageManager messageManager;
     private DatabaseManager databaseManager;
     private CooldownManager cooldownManager;
+    private InventoryBackupManager backupManager;
     private HookManager hookManager;
 
     @Override
@@ -49,14 +53,18 @@ public final class THCore extends JavaPlugin {
         // 4. Cooldowns
         cooldownManager = new CooldownManager();
 
-        // 5. Hooks (soft-depend integrations)
+        // 5. Inventory backup (needed by FullGUI)
+        backupManager = new InventoryBackupManager();
+        getServer().getPluginManager().registerEvents(new PlayerInventoryListener(this), this);
+
+        // 6. Hooks (soft-depend integrations)
         hookManager = new HookManager(this);
         hookManager.loadAll();
 
-        // 6. Static API facade
+        // 7. Static API facade
         THCoreAPI.init(this);
 
-        // 7. Built-in /thcore command
+        // 8. Built-in /thcore command
         new THCoreCommand(this).register(this, "thcore");
 
         getLogger().info("THCore v" + getDescription().getVersion() + " enabled. "
@@ -66,6 +74,9 @@ public final class THCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (backupManager != null) {
+            backupManager.restoreAll(); // restore inventories before shutdown
+        }
         if (hookManager != null) {
             hookManager.unloadAll();
         }
@@ -103,5 +114,9 @@ public final class THCore extends JavaPlugin {
 
     public HookManager getHookManager() {
         return hookManager;
+    }
+
+    public InventoryBackupManager getBackupManager() {
+        return backupManager;
     }
 }

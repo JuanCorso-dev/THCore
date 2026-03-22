@@ -4,6 +4,7 @@ import com.thteam.thcore.THCore;
 import com.thteam.thcore.config.ConfigManager;
 import com.thteam.thcore.cooldown.CooldownManager;
 import com.thteam.thcore.database.DatabaseManager;
+import com.thteam.thcore.gui.InventoryBackupManager;
 import com.thteam.thcore.hook.HookManager;
 import com.thteam.thcore.hook.impl.*;
 import com.thteam.thcore.message.MessageManager;
@@ -65,6 +66,11 @@ public final class THCoreAPI {
     public static ConfigManager getConfigManager() {
         checkInit();
         return plugin.getConfigManager();
+    }
+
+    public static InventoryBackupManager getBackupManager() {
+        checkInit();
+        return plugin.getBackupManager();
     }
 
     // ------------------------------------------------ Hook shortcuts
