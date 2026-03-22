@@ -9,20 +9,22 @@ import com.thteam.thcore.gui.InventoryBackupManager;
 import com.thteam.thcore.gui.PlayerInventoryListener;
 import com.thteam.thcore.hook.HookManager;
 import com.thteam.thcore.message.MessageManager;
+import com.thteam.thcore.playerdata.PlayerDataManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * THCore — Core library plugin for Paper 1.21.1
  *
  * Initialization order (MUST be respected):
- *   1. ConfigManager         — everything else reads from config
- *   2. MessageManager        — used by all systems for output
- *   3. DatabaseManager       — reads DB type from config
- *   4. CooldownManager       — pure in-memory, no dependencies
+ *   1. ConfigManager          — everything else reads from config
+ *   2. MessageManager         — used by all systems for output
+ *   3. DatabaseManager        — reads DB type from config
+ *   3.5 PlayerDataManager     — needs DatabaseManager
+ *   4. CooldownManager        — pure in-memory, no dependencies
  *   5. InventoryBackupManager — needed by FullGUI and PlayerInventoryListener
- *   6. HookManager           — needs Bukkit's PluginManager (all plugins already loaded)
- *   7. THCoreAPI             — static facade, initialized last
- *   8. Commands + Listeners  — registered after everything is wired
+ *   6. HookManager            — needs Bukkit's PluginManager (all plugins already loaded)
+ *   7. THCoreAPI              — static facade, initialized last
+ *   8. Commands + Listeners   — registered after everything is wired
  */
 public final class THCore extends JavaPlugin {
 
@@ -31,6 +33,7 @@ public final class THCore extends JavaPlugin {
     private ConfigManager configManager;
     private MessageManager messageManager;
     private DatabaseManager databaseManager;
+    private PlayerDataManager playerDataManager;
     private CooldownManager cooldownManager;
     private InventoryBackupManager backupManager;
     private HookManager hookManager;
@@ -49,6 +52,9 @@ public final class THCore extends JavaPlugin {
         // 3. Database
         databaseManager = DatabaseManager.create(this, configManager);
         databaseManager.connect();
+
+        // 3.5 Player data (needs DatabaseManager)
+        playerDataManager = new PlayerDataManager(this);
 
         // 4. Cooldowns
         cooldownManager = new CooldownManager();
@@ -118,5 +124,9 @@ public final class THCore extends JavaPlugin {
 
     public InventoryBackupManager getBackupManager() {
         return backupManager;
+    }
+
+    public PlayerDataManager getPlayerDataManager() {
+        return playerDataManager;
     }
 }

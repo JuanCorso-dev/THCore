@@ -8,6 +8,7 @@ import com.thteam.thcore.gui.InventoryBackupManager;
 import com.thteam.thcore.hook.HookManager;
 import com.thteam.thcore.hook.impl.*;
 import com.thteam.thcore.message.MessageManager;
+import com.thteam.thcore.playerdata.PlayerDataManager;
 
 /**
  * Static access point for all THCore systems.
@@ -71,6 +72,11 @@ public final class THCoreAPI {
     public static InventoryBackupManager getBackupManager() {
         checkInit();
         return plugin.getBackupManager();
+    }
+
+    public static PlayerDataManager getPlayerDataManager() {
+        checkInit();
+        return plugin.getPlayerDataManager();
     }
 
     // ------------------------------------------------ Hook shortcuts

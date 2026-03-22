@@ -4,6 +4,8 @@ import com.thteam.thcore.THCore;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.util.List;
+
 public class ConfigManager {
 
     private final THCore plugin;
@@ -50,5 +52,28 @@ public class ConfigManager {
 
     public FileConfiguration getRaw() {
         return config;
+    }
+
+    public List<String> getStringList(String path) {
+        return config.getStringList(path);
+    }
+
+    public boolean contains(String path) {
+        return config.contains(path);
+    }
+
+    /**
+     * Sets a value in the in-memory config.
+     * Call {@link #save()} afterwards to persist to disk.
+     */
+    public void set(String path, Object value) {
+        config.set(path, value);
+    }
+
+    /**
+     * Saves the current in-memory config to config.yml on disk.
+     */
+    public void save() {
+        plugin.saveConfig();
     }
 }

@@ -6,9 +6,12 @@
 
 - **Database System** — MySQL and SQLite support via HikariCP connection pooling, auto-selected from config
 - **Command Framework** — `BaseCommand` + `SubCommand` pattern with automatic tab-completion and permission checks
-- **GUI System** — `BaseGUI` (chest) and `FullGUI` (chest + player inventory) with priority slot resolution, `GUIAction`, `GUIRequirement`, dynamic PAPI titles, open/close hooks, and auto-refresh
+- **GUI System** — `BaseGUI` (chest), `FullGUI` (chest + player inventory), and `PagedGUI` (paginated) with priority slot resolution, `GUIAction`, `GUIRequirement`, dynamic PAPI titles, open/close hooks, and auto-refresh
+- **ItemBuilder** — Fluent builder for `ItemStack` (name, lore, enchants, glow, CustomModelData)
+- **PlayerData** — Per-player key-value store persisted in the database (SQLite/MySQL)
 - **Cooldown Manager** — Per-player, per-key cooldowns stored in memory with auto-cleanup
 - **Message System** — Full MiniMessage support (`<red>`, `<gradient:...>`), legacy `&c` codes, and hex `&#RRGGBB`
+- **Tasks** — Static helpers for sync/async Bukkit scheduler operations
 - **Hook System** — Soft-depend integrations that activate only if the target plugin is installed
 
 ## Supported Integrations (all soft-depend)
@@ -293,6 +296,129 @@ public class MyFullMenu extends FullGUI {
 
 // Open it:
 new MyFullMenu(plugin).open(player);
+```
+
+### 6. ItemBuilder
+
+Fluent builder for `ItemStack`. Available anywhere — no THCore instance needed.
+
+```java
+import com.thteam.thcore.item.ItemBuilder;
+
+ItemStack item = new ItemBuilder(Material.DIAMOND)
+    .name("<aqua><bold>VIP Diamond")
+    .lore("<gray>Click to buy", "<yellow>Cost: $500")
+    .amount(3)
+    .enchant(Enchantment.SHARPNESS, 5)
+    .flag(ItemFlag.HIDE_ENCHANTS)
+    .glow(true)          // visual glow without showing enchantment tooltip
+    .model(1001)         // CustomModelData for resource packs
+    .unbreakable(true)
+    .build();
+
+// Copy constructor (leaves original unchanged)
+ItemStack copy = new ItemBuilder(existingItem).name("<red>Modified").build();
+```
+
+### 7. PagedGUI
+
+Paginated chest GUI built on top of `BaseGUI`. All `BaseGUI` features work here too.
+
+```java
+public class PlayerListGUI extends PagedGUI {
+
+    public PlayerListGUI(THCore plugin) {
+        super(plugin, "<gold>Online Players — Page %page%</gold>", 6);
+
+        setPrevButtonItem(new ItemBuilder(Material.ARROW).name("<gray>← Previous").build());
+        setNextButtonItem(new ItemBuilder(Material.ARROW).name("<gray>Next →").build());
+
+        addOpenAction(GUIAction.sound(Sound.BLOCK_CHEST_OPEN, 1f, 1f));
+    }
+
+    @Override
+    protected void fillBorder() {
+        // Fill non-content slots with decoration (bottom row is nav, rest is content)
+        fillEmpty(new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE).name(" ").build());
+    }
+}
+
+// Add items dynamically before opening:
+PlayerListGUI gui = new PlayerListGUI(plugin);
+for (Player p : Bukkit.getOnlinePlayers()) {
+    gui.addPageItem(
+        new ItemBuilder(Material.PLAYER_HEAD).name("<white>" + p.getName()).build(),
+        GUIAction.message("<gray>You selected: <white>" + p.getName())
+    );
+}
+gui.open(viewer);
+```
+
+Default layout for a 6-row chest:
+- **Content slots**: 0–44 (rows 1–5)
+- **Prev button**: slot 45 (bottom-left)
+- **Page info**: slot 49 (bottom-center) — shows "Page X / Y" automatically
+- **Next button**: slot 53 (bottom-right)
+
+Customize with:
+```java
+setContentSlots(10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25); // inner area only
+setPrevSlot(45);
+setNextSlot(53);
+setPageInfoSlot(49);
+```
+
+### 8. PlayerData
+
+Per-player key-value store backed by the database. Table is auto-created on startup.
+
+```java
+// Load (blocking — run async for best performance)
+PlayerData data = THCoreAPI.getPlayerDataManager().load(player.getUniqueId());
+
+// Read values
+int kills  = data.getInt("kills", 0);
+String rank = data.getString("rank", "default");
+boolean vip = data.getBoolean("vip", false);
+
+// Write values
+data.set("kills", kills + 1);
+data.set("rank", "VIP");
+data.remove("temp_key");
+
+// Check existence
+if (data.has("rank")) { ... }
+
+// Save (prefer async to avoid blocking the main thread)
+data.saveAsync(plugin);  // non-blocking
+data.save();             // blocking (use on async thread)
+
+// Delete all data for a player
+THCoreAPI.getPlayerDataManager().delete(player.getUniqueId());
+```
+
+Works with both SQLite and MySQL — uses `INSERT OR REPLACE` / `ON DUPLICATE KEY UPDATE` automatically.
+
+### 9. Tasks
+
+Static helpers for the Bukkit scheduler.
+
+```java
+import com.thteam.thcore.util.Tasks;
+
+// Sync — runs on the main thread
+Tasks.run(plugin, () -> player.sendMessage("immediate"));
+Tasks.delay(plugin, 20, () -> player.sendMessage("after 1s"));
+Tasks.repeat(plugin, 0, 20, () -> broadcastTime());
+
+// Async — runs off the main thread (safe for I/O, DB queries)
+Tasks.async(plugin, () -> loadFromDatabase());
+Tasks.asyncDelay(plugin, 40, () -> fetchWebData());
+Tasks.asyncRepeat(plugin, 0, 200, () -> syncWithExternalAPI());
+
+// Cancel a task
+BukkitTask task = Tasks.repeat(plugin, 0, 20, runnable);
+Tasks.cancel(task); // null-safe
 ```
 
 ## Building from Source
