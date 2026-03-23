@@ -24,6 +24,7 @@ public class HookManager {
         register(new MythicMobsHook(plugin));
         register(new ExcellentEconomyHook(plugin));
         register(new PlayerPointsHook(plugin));
+        register(new LuckPermsHook(plugin));
     }
 
     private void register(BaseHook hook) {

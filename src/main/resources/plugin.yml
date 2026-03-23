@@ -16,6 +16,7 @@ softdepend:
   - PlayerPoints
   - ItemsAdder
   - Oraxen
+  - LuckPerms
 
 commands:
   thcore:

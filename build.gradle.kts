@@ -44,6 +44,7 @@ dependencies {
     compileOnly("org.black_ixx:playerpoints:3.2.7")
     compileOnly("com.github.LoneDev6:API-ItemsAdder:3.6.3-beta-14b")
     // compileOnly("io.th0rgal:oraxen:<version>")  // descomentar cuando confirmes la versión
+    compileOnly("net.luckperms:api:5.4")            // LuckPerms — en Maven Central, no necesita repo extra
 }
 
 tasks {

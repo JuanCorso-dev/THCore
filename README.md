@@ -27,6 +27,7 @@
 | [MythicMobs](https://www.spigotmc.org/resources/mythicmobs.5702/) | Mob spawning and type detection |
 | [CoinsEngine](https://www.spigotmc.org/resources/coinsengine.84121/) | Multi-currency balance management |
 | [PlayerPoints](https://www.spigotmc.org/resources/playerpoints.80745/) | Points balance management |
+| [LuckPerms](https://luckperms.net/) | Groups, prefix/suffix, meta values per player |
 
 ## Requirements
 
@@ -125,6 +126,16 @@ if (wg != null && wg.isInRegion(player, "spawn")) {
 NexoHook nexo = THCoreAPI.getNexo();
 if (nexo != null) {
     ItemStack item = nexo.getItem("my_custom_item");
+}
+
+// LuckPerms — groups, prefix, suffix, meta
+LuckPermsHook lp = THCoreAPI.getLuckPerms();
+if (lp != null) {
+    String group  = lp.getPrimaryGroup(player);        // "admin", "vip", "default"...
+    boolean isVip = lp.isInGroup(player, "vip");
+    String prefix = lp.getPrefix(player);              // "[VIP] " or null
+    String suffix = lp.getSuffix(player);
+    String level  = lp.getMetaValue(player, "level");  // custom meta key
 }
 ```
 

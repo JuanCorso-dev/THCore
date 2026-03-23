@@ -136,6 +136,12 @@ public final class THCoreAPI {
         return plugin.getHookManager().getHook(PlayerPointsHook.class);
     }
 
+    /** @return LuckPermsHook or null if LuckPerms is not installed */
+    public static LuckPermsHook getLuckPerms() {
+        checkInit();
+        return plugin.getHookManager().getHook(LuckPermsHook.class);
+    }
+
     // ------------------------------------------------ Plugin instance (internal use)
 
     /** Returns the THCore plugin instance. Prefer the typed getters above. */
