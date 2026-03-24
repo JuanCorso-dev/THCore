@@ -3,7 +3,6 @@ package com.thteam.thcore.playerdata;
 import com.thteam.thcore.THCore;
 import com.thteam.thcore.database.DatabaseManager;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,12 +55,15 @@ public class PlayerDataManager {
      */
     public PlayerData load(UUID uuid) {
         Map<String, String> values = new HashMap<>();
-        try (ResultSet rs = db.executeQuery(
+        try {
+            db.executeQuery(
                 "SELECT key, value FROM thcore_player_data WHERE uuid = ?",
-                uuid.toString())) {
-            while (rs.next()) {
-                values.put(rs.getString("key"), rs.getString("value"));
-            }
+                rs -> {
+                    while (rs.next()) {
+                        values.put(rs.getString("key"), rs.getString("value"));
+                    }
+                },
+                uuid.toString());
         } catch (SQLException e) {
             plugin.getLogger().severe("[PlayerData] Failed to load " + uuid + ": " + e.getMessage());
         }

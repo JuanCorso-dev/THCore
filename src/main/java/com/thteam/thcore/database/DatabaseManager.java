@@ -20,9 +20,9 @@ import java.sql.SQLException;
  *   DatabaseManager db = THCoreAPI.getDatabase();
  *   db.executeUpdate("INSERT INTO my_table (uuid, value) VALUES (?, ?)", uuid.toString(), 100);
  *
- *   try (ResultSet rs = db.executeQuery("SELECT * FROM my_table WHERE uuid = ?", uuid.toString())) {
+ *   db.executeQuery("SELECT * FROM my_table WHERE uuid = ?", rs -> {
  *       while (rs.next()) { ... }
- *   }
+ *   }, uuid.toString());
  */
 public abstract class DatabaseManager {
 
@@ -96,17 +96,30 @@ public abstract class DatabaseManager {
     }
 
     /**
-     * Executes a SELECT statement and returns the ResultSet.
-     * IMPORTANT: Caller is responsible for closing the ResultSet (try-with-resources).
-     * The Connection and PreparedStatement are held open until ResultSet is closed.
+     * Executes a SELECT and passes the ResultSet to a handler.
+     * The Connection, PreparedStatement, and ResultSet are all closed automatically.
+     *
+     * Example:
+     *   db.executeQuery("SELECT * FROM t WHERE uuid = ?", rs -> {
+     *       while (rs.next()) { ... }
+     *   }, uuid.toString());
      */
-    public ResultSet executeQuery(String sql, Object... params) throws SQLException {
-        Connection conn = getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        for (int i = 0; i < params.length; i++) {
-            stmt.setObject(i + 1, params[i]);
+    public void executeQuery(String sql, QueryHandler handler, Object... params) throws SQLException {
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                stmt.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                handler.handle(rs);
+            }
         }
-        return stmt.executeQuery();
+    }
+
+    /** Functional interface for processing a ResultSet row by row. */
+    @FunctionalInterface
+    public interface QueryHandler {
+        void handle(ResultSet rs) throws SQLException;
     }
 
     /**

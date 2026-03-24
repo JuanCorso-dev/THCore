@@ -2,6 +2,7 @@ package com.thteam.thcore.item;
 
 import com.thteam.thcore.message.MessageUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
@@ -57,7 +58,7 @@ public class ItemBuilder {
      */
     public ItemBuilder name(String name) {
         if (meta != null) {
-            meta.displayName(MessageUtil.colorize(name));
+            meta.displayName(MessageUtil.colorize(name).decoration(TextDecoration.ITALIC, false));
         }
         return this;
     }
@@ -76,7 +77,7 @@ public class ItemBuilder {
         if (meta != null) {
             List<Component> components = new ArrayList<>();
             for (String line : lines) {
-                components.add(MessageUtil.colorize(line));
+                components.add(MessageUtil.colorize(line).decoration(TextDecoration.ITALIC, false));
             }
             meta.lore(components);
         }
