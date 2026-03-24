@@ -4,6 +4,7 @@ import com.thteam.thcore.THCore;
 import com.thteam.thcore.message.MessageUtil;
 import org.bukkit.command.*;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -45,7 +46,11 @@ public abstract class BaseCommand implements CommandExecutor, TabCompleter {
      * The command name must exist in the owningPlugin's plugin.yml.
      */
     public void register(Plugin owningPlugin, String commandName) {
-        PluginCommand cmd = owningPlugin.getCommand(commandName);
+        if (!(owningPlugin instanceof JavaPlugin javaPlugin)) {
+            plugin.getLogger().warning("Cannot register command '" + commandName + "': plugin is not a JavaPlugin.");
+            return;
+        }
+        PluginCommand cmd = javaPlugin.getCommand(commandName);
         if (cmd == null) {
             plugin.getLogger().warning("Command '" + commandName + "' not found in plugin.yml of "
                 + owningPlugin.getName() + "!");

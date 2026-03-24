@@ -35,8 +35,7 @@ public class MythicMobsHook extends BaseHook {
      */
     public boolean spawnMob(String mobType, Location location, double level) {
         return api.getMobManager()
-            .spawnMob(mobType, BukkitAdapter.adapt(location), level)
-            .isPresent();
+            .spawnMob(mobType, BukkitAdapter.adapt(location), level) != null;
     }
 
     /**
@@ -51,10 +50,8 @@ public class MythicMobsHook extends BaseHook {
      * or null if the entity is not a MythicMobs mob.
      */
     public String getMobType(LivingEntity entity) {
-        return api.getMobManager()
-            .getMythicMobInstance(BukkitAdapter.adapt(entity))
-            .map(m -> m.getType().getInternalName())
-            .orElse(null);
+        var activeMob = api.getMobManager().getMythicMobInstance(BukkitAdapter.adapt(entity));
+        return activeMob != null ? activeMob.getType().getInternalName() : null;
     }
 
     /**

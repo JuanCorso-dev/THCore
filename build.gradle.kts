@@ -35,14 +35,14 @@ dependencies {
     implementation("com.mysql:mysql-connector-j:8.4.0")
 
     // ==================== Soft-depend APIs (compileOnly - NEVER shade) ====================
-    compileOnly("net.milkbowl.vault:VaultAPI:1.7")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7")
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.12")
     compileOnly("com.nexomc:nexo:0.7.0")
     compileOnly("io.lumine:Mythic-Dist:5.6.1")
-    compileOnly("su.nightexpress.coinsengine:CoinsEngine:1.9.0")
+    // compileOnly("su.nightexpress.coinsengine:CoinsEngine:1.9.0")  // unavailable repo - skip for now
     compileOnly("org.black_ixx:playerpoints:3.2.7")
-    compileOnly("com.github.LoneDev6:API-ItemsAdder:3.6.3-beta-14b")
+    // compileOnly("com.github.LoneDev6:API-ItemsAdder:3.6.3-beta-14b")  // JitPack unavailable - skip for now
     // compileOnly("io.th0rgal:oraxen:<version>")  // descomentar cuando confirmes la versión
     compileOnly("net.luckperms:api:5.4")            // LuckPerms — en Maven Central, no necesita repo extra
 }
@@ -51,12 +51,9 @@ tasks {
     shadowJar {
         archiveClassifier.set("")
 
-        // Relocalizar libs shadeadas para evitar conflictos con otros plugins
-        relocate("com.zaxxer.hikari", "com.thteam.thcore.libs.hikari")
-        relocate("org.sqlite", "com.thteam.thcore.libs.sqlite")
-        relocate("com.mysql", "com.thteam.thcore.libs.mysql")
+        // Relocation disabled for compatibility with Java 21 bytecode in current Shadow setup.
 
-        minimize()
+        // Disabled to avoid class version parsing issues in Shadow with Java 21 bytecode.
     }
 
     compileJava {
